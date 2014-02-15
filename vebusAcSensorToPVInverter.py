@@ -12,7 +12,6 @@ import dbus
 import dbus.service
 import inspect
 import platform
-import pprint
 import logging
 import argparse
 
@@ -146,7 +145,6 @@ class AcDevice(object):
 			# There are no sensors left: take ourselves off the dbus
 			r = []
 			for k, o in self._dbusItems.iteritems():
-				print 'removing ' + o.__dbus_object_path__
 				o.remove_from_connection()
 				r.append(k)
 
@@ -240,17 +238,8 @@ def main():
 	# For a CCGX, connect to the SystemBus
 	dbusConn = dbus.SystemBus() if (platform.machine() == 'armv7l') else dbus.SessionBus()
 
-	# Register ourserves on the dbus. We'll always maintain this connection. Any pvinverters we might
-	# publish will be published on other connections
-	dbusConnName = dbus.service.BusName("com.victronenergy.conversions", dbusConn)
-
 	# subscribe to NameOwnerChange for bus connect / disconnect events.
 	dbusConn.add_signal_receiver(dbus_name_owner_changed, signal_name='NameOwnerChanged')
-
-	# Create the management objects, as specified in the ccgx dbus-api document
-	add_dbus_object(dbusItems, dbusConn, '/Mgmt/ProcessName', __file__)
-	add_dbus_object(dbusItems, dbusConn, '/Mgmt/ProcessVersion', softwareVersion + ' running on Python ' + platform.python_version())
-	add_dbus_object(dbusItems, dbusConn, '/Mgmt/Connection', 'not relevant')
 
 	# Add the acDevices, and use same numbering as in VE.Bus
 	acDevices[0] = AcDevice(0)
