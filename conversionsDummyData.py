@@ -32,13 +32,13 @@ def processNameOwnerChanged(name, oldOwner, newOwner):
         #print 'processingNameOwnerChanged'
         pass
 
-def addDbusOject(dictionary, dbusConn, path, value, isValid = True, description = '', callback = None):
+def addDbusObject(dictionary, dbusConn, path, value, isValid = True, description = '', callback = None):
         dbusObjects[path] = VeDbusItemExport(dbusConn, path, value, isValid, description, callback)
 
 def update():
-	print 'time'
-	print 'value now: ' + str(dbusObjects['/AcSensor/0/Power'].GetValue())
-	dbusObjects['/AcSensor/0/Power'].SetValue(dbusObjects['/AcSensor/0/Power'].GetValue() + 1)
+	p = '/AcSensor/0/Energy'
+	print 'value now for ' + p + ' ' + str(dbusObjects[p].GetValue()) + ', incrementing...'
+	dbusObjects[p].SetValue(dbusObjects[p].GetValue() + 1)
 	gobject.timeout_add(1000, update)
 
 print __file__ + " starting up"
@@ -60,31 +60,34 @@ dbusConn.add_signal_receiver(handleDbusNameOwnerChanged, signal_name='NameOwnerC
 # dan allemaal ophalen
 
 # Create the management objects, as specified in the ccgx dbus-api document
-addDbusOject(dbusObjects, dbusConn, '/Mgmt/ProcessName', __file__)
-addDbusOject(dbusObjects, dbusConn, '/Mgmt/ProcessVersion', softwareVersion + ' running on Python ' + platform.python_version())
-addDbusOject(dbusObjects, dbusConn, '/Mgmt/Connection', 'Data taken from mk2dbus')
+addDbusObject(dbusObjects, dbusConn, '/Mgmt/ProcessName', __file__)
+addDbusObject(dbusObjects, dbusConn, '/Mgmt/ProcessVersion', softwareVersion + ' running on Python ' + platform.python_version())
+addDbusObject(dbusObjects, dbusConn, '/Mgmt/Connection', 'Data taken from mk2dbus')
 
 # Create the mandatory objects
-addDbusOject(dbusObjects, dbusConn, '/DeviceInstance', 0)
-addDbusOject(dbusObjects, dbusConn, '/ProductId', 0)
-addDbusOject(dbusObjects, dbusConn, '/ProductName', 'PV Inverter on Output')
-addDbusOject(dbusObjects, dbusConn, '/FirmwareVersion', 0)
-addDbusOject(dbusObjects, dbusConn, '/HardwareVersion', 0)
-addDbusOject(dbusObjects, dbusConn, '/Connected', 0)
+addDbusObject(dbusObjects, dbusConn, '/DeviceInstance', 0)
+addDbusObject(dbusObjects, dbusConn, '/ProductId', 0)
+addDbusObject(dbusObjects, dbusConn, '/ProductName', 'PV Inverter on Output')
+addDbusObject(dbusObjects, dbusConn, '/FirmwareVersion', 0)
+addDbusObject(dbusObjects, dbusConn, '/HardwareVersion', 0)
+addDbusObject(dbusObjects, dbusConn, '/Connected', 1)
 
 # Create all the objects that we want to export to the dbus
-addDbusOject(dbusObjects, dbusConn, '/AcSensor/Count', 2)
-addDbusOject(dbusObjects, dbusConn, '/AcSensor/0/Location', 0)
-addDbusOject(dbusObjects, dbusConn, '/AcSensor/0/Phase', 0)
-addDbusOject(dbusObjects, dbusConn, '/AcSensor/0/Power', 9000)
+addDbusObject(dbusObjects, dbusConn, '/AcSensor/Count', 2)
+addDbusObject(dbusObjects, dbusConn, '/AcSensor/0/Location', 0)
+addDbusObject(dbusObjects, dbusConn, '/AcSensor/0/Phase', 0)
+addDbusObject(dbusObjects, dbusConn, '/AcSensor/0/Power', 9000)
+addDbusObject(dbusObjects, dbusConn, '/AcSensor/0/Energy', 10)
 
-addDbusOject(dbusObjects, dbusConn, '/AcSensor/1/Location', 1)
-addDbusOject(dbusObjects, dbusConn, '/AcSensor/1/Phase', 2)
-addDbusOject(dbusObjects, dbusConn, '/AcSensor/1/Power', 9112)
+addDbusObject(dbusObjects, dbusConn, '/AcSensor/1/Location', 1)
+addDbusObject(dbusObjects, dbusConn, '/AcSensor/1/Phase', 2)
+addDbusObject(dbusObjects, dbusConn, '/AcSensor/1/Power', 9112)
+addDbusObject(dbusObjects, dbusConn, '/AcSensor/1/Energy', 20)
 
-addDbusOject(dbusObjects, dbusConn, '/AcSensor/2/Location', 1)
-addDbusOject(dbusObjects, dbusConn, '/AcSensor/2/Phase', 0)
-addDbusOject(dbusObjects, dbusConn, '/AcSensor/2/Power', 9210)
+addDbusObject(dbusObjects, dbusConn, '/AcSensor/2/Location', 1)
+addDbusObject(dbusObjects, dbusConn, '/AcSensor/2/Phase', 0)
+addDbusObject(dbusObjects, dbusConn, '/AcSensor/2/Power', 9210)
+addDbusObject(dbusObjects, dbusConn, '/AcSensor/2/Energy', 30)
 
 # Start and run the mainloop
 
