@@ -23,9 +23,6 @@ softwareVersion = '1.0'
 # Dictionary containing all acDevices exported to dbus
 acDevices = {}
 
-# Dictionary containing all dbusItems that belong to the main dbus service
-dbusItems = {}
-
 
 # Class representing one PV Inverter. I chose a more generic name, since in future it
 # will probably also become something else, such as a grid connection, or wind inverter
@@ -127,10 +124,20 @@ class AcDevice(object):
 														self._dbusConn)
 
 				# Create the mandatory objects, as per victron dbus api document
+				self._dbusItems['/Mgmt/ProcessName'] = VeDbusItemExport(self._dbusConn,
+					'/Mgmt/ProcessName', __file__)
+
+				self._dbusItems['/Mgmt/ProcessVersion'] = VeDbusItemExport(self._dbusConn,
+					'/Mgmt/ProcessVersion', softwareVersion + ' running on Python ' + platform.python_version())
+
+				self._dbusItems['/Mgmt/Connection'] = VeDbusItemExport(self._dbusConn,
+					'/Mgmt/Connection', 'Data taken from mk2dbus')
+
 				self._dbusItems['/DeviceInstance'] = VeDbusItemExport(self._dbusConn, '/DeviceInstance', 0)
 				self._dbusItems['/ProductId'] = VeDbusItemExport(self._dbusConn, '/ProductId', 0)
 				self._dbusItems['/ProductName'] = VeDbusItemExport(self._dbusConn, '/ProductName',
-																'PV Inverter on input 1 (vebus ac sensors)')
+					'PV Inverter on input 1 (vebus ac sensors)')
+
 				self._dbusItems['/FirmwareVersion'] = VeDbusItemExport(self._dbusConn, '/FirmwareVersion', 0)
 				self._dbusItems['/HardwareVersion'] = VeDbusItemExport(self._dbusConn, '/HardwareVersion', 0)
 				self._dbusItems['/Connected'] = VeDbusItemExport(self._dbusConn, '/Connected', 1)
