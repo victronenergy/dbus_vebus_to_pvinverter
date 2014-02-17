@@ -124,14 +124,14 @@ class AcDevice(object):
 														self._dbusConn)
 
 				# Create the mandatory objects, as per victron dbus api document
-				self._dbusItems['/Mgmt/ProcessName'] = VeDbusItemExport(self._dbusConn,
-					'/Mgmt/ProcessName', __file__)
+				self._dbusItems['/Management/ProcessName'] = VeDbusItemExport(self._dbusConn,
+					'/Management/ProcessName', __file__)
 
-				self._dbusItems['/Mgmt/ProcessVersion'] = VeDbusItemExport(self._dbusConn,
-					'/Mgmt/ProcessVersion', softwareVersion + ' running on Python ' + platform.python_version())
+				self._dbusItems['/Management/ProcessVersion'] = VeDbusItemExport(self._dbusConn,
+					'/Management/ProcessVersion', softwareVersion + ' running on Python ' + platform.python_version())
 
-				self._dbusItems['/Mgmt/Connection'] = VeDbusItemExport(self._dbusConn,
-					'/Mgmt/Connection', 'Data taken from mk2dbus')
+				self._dbusItems['/Management/Connection'] = VeDbusItemExport(self._dbusConn,
+					'/Management/Connection', 'Data taken from mk2dbus')
 
 				self._dbusItems['/DeviceInstance'] = VeDbusItemExport(self._dbusConn, '/DeviceInstance', 0)
 				self._dbusItems['/ProductId'] = VeDbusItemExport(self._dbusConn, '/ProductId', 0)
