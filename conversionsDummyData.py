@@ -13,6 +13,7 @@ import dbus.service
 import inspect
 import platform
 from threading import Timer
+import argparse
 
 # our own packages
 from vedbus import VeDbusItemExport
@@ -41,6 +42,17 @@ def update():
 	dbusObjects[p].SetValue(dbusObjects[p].GetValue() + 1)
 	gobject.timeout_add(1000, update)
 
+
+# Argument parsing
+parser = argparse.ArgumentParser(
+	description='dbusMonitor.py demo run'
+)
+
+parser.add_argument("-n", "--name", help="the D-Bus service you want me to claim",
+				type=str, default="com.victronenergy.vebus.ttyO1")
+
+args = parser.parse_args()
+
 print __file__ + " starting up"
 
 # Have a mainloop, so we can send/receive asynchronous calls to and from dbus
@@ -51,7 +63,8 @@ DBusGMainLoop(set_as_default=True)
 dbusConn = dbus.SystemBus() if (platform.machine() == 'armv7l') else dbus.SessionBus()
 
 # Register ourserves on the dbus, fake that we are a Quattro
-name = dbus.service.BusName("com.victronenergy.vebus", dbusConn)
+name = dbus.service.BusName(args.name, dbusConn)
+print("registered on D-Bus as %s" % args.name)
 
 # subscribe to NameOwnerChange for bus connect / disconnect events.
 dbusConn.add_signal_receiver(handleDbusNameOwnerChanged, signal_name='NameOwnerChanged')
@@ -60,9 +73,9 @@ dbusConn.add_signal_receiver(handleDbusNameOwnerChanged, signal_name='NameOwnerC
 # dan allemaal ophalen
 
 # Create the management objects, as specified in the ccgx dbus-api document
-addDbusObject(dbusObjects, dbusConn, '/Mgmt/ProcessName', __file__)
-addDbusObject(dbusObjects, dbusConn, '/Mgmt/ProcessVersion', softwareVersion + ' running on Python ' + platform.python_version())
-addDbusObject(dbusObjects, dbusConn, '/Mgmt/Connection', 'Data taken from mk2dbus')
+addDbusObject(dbusObjects, dbusConn, '/Management/ProcessName', __file__)
+addDbusObject(dbusObjects, dbusConn, '/Management/ProcessVersion', softwareVersion + ' running on Python ' + platform.python_version())
+addDbusObject(dbusObjects, dbusConn, '/Management/Connection', 'Data taken from mk2dbus')
 
 # Create the mandatory objects
 addDbusObject(dbusObjects, dbusConn, '/DeviceInstance', 0)
