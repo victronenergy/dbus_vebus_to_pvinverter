@@ -51,7 +51,7 @@ DBusGMainLoop(set_as_default=True)
 dbusConn = dbus.SystemBus() if (platform.machine() == 'armv7l') else dbus.SessionBus()
 
 # Register ourserves on the dbus, fake that we are a Quattro
-name = dbus.service.BusName("com.victronenergy.vebus", dbusConn)
+name = dbus.service.BusName("com.victronenergy.vebus.ttyO1", dbusConn)
 
 # subscribe to NameOwnerChange for bus connect / disconnect events.
 dbusConn.add_signal_receiver(handleDbusNameOwnerChanged, signal_name='NameOwnerChanged')
@@ -60,9 +60,9 @@ dbusConn.add_signal_receiver(handleDbusNameOwnerChanged, signal_name='NameOwnerC
 # dan allemaal ophalen
 
 # Create the management objects, as specified in the ccgx dbus-api document
-addDbusObject(dbusObjects, dbusConn, '/Mgmt/ProcessName', __file__)
-addDbusObject(dbusObjects, dbusConn, '/Mgmt/ProcessVersion', softwareVersion + ' running on Python ' + platform.python_version())
-addDbusObject(dbusObjects, dbusConn, '/Mgmt/Connection', 'Data taken from mk2dbus')
+addDbusObject(dbusObjects, dbusConn, '/Management/ProcessName', __file__)
+addDbusObject(dbusObjects, dbusConn, '/Management/ProcessVersion', softwareVersion + ' running on Python ' + platform.python_version())
+addDbusObject(dbusObjects, dbusConn, '/Management/Connection', 'Data taken from mk2dbus')
 
 # Create the mandatory objects
 addDbusObject(dbusObjects, dbusConn, '/DeviceInstance', 0)
