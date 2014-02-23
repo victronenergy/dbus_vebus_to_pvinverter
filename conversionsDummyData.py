@@ -37,7 +37,7 @@ def addDbusObject(dictionary, dbusConn, path, value, isValid = True, description
         dbusObjects[path] = VeDbusItemExport(dbusConn, path, value, isValid, description, callback)
 
 def update():
-	p = '/AcSensor/0/Energy'
+	p = '/Dc/V'
 	print 'value now for ' + p + ' ' + str(dbusObjects[p].GetValue()) + ', incrementing...'
 	dbusObjects[p].SetValue(dbusObjects[p].GetValue() + 1)
 	gobject.timeout_add(1000, update)
@@ -50,6 +50,9 @@ parser = argparse.ArgumentParser(
 
 parser.add_argument("-n", "--name", help="the D-Bus service you want me to claim",
 				type=str, default="com.victronenergy.vebus.ttyO1")
+
+parser.add_argument("-d", "--deviceinstance", help="the device instance you want me to be",
+				type=str, default="0")
 
 args = parser.parse_args()
 
@@ -65,6 +68,7 @@ dbusConn = dbus.SystemBus() if (platform.machine() == 'armv7l') else dbus.Sessio
 # Register ourserves on the dbus, fake that we are a Quattro
 name = dbus.service.BusName(args.name, dbusConn)
 print("registered on D-Bus as %s" % args.name)
+print("using device instance %s" % args.deviceinstance)
 
 # subscribe to NameOwnerChange for bus connect / disconnect events.
 dbusConn.add_signal_receiver(handleDbusNameOwnerChanged, signal_name='NameOwnerChanged')
@@ -78,7 +82,7 @@ addDbusObject(dbusObjects, dbusConn, '/Management/ProcessVersion', softwareVersi
 addDbusObject(dbusObjects, dbusConn, '/Management/Connection', 'Data taken from mk2dbus')
 
 # Create the mandatory objects
-addDbusObject(dbusObjects, dbusConn, '/DeviceInstance', 0)
+addDbusObject(dbusObjects, dbusConn, '/DeviceInstance', args.deviceinstance)
 addDbusObject(dbusObjects, dbusConn, '/ProductId', 0)
 addDbusObject(dbusObjects, dbusConn, '/ProductName', 'PV Inverter on Output')
 addDbusObject(dbusObjects, dbusConn, '/FirmwareVersion', 0)
@@ -101,6 +105,8 @@ addDbusObject(dbusObjects, dbusConn, '/AcSensor/2/Location', 1)
 addDbusObject(dbusObjects, dbusConn, '/AcSensor/2/Phase', 0)
 addDbusObject(dbusObjects, dbusConn, '/AcSensor/2/Power', 9210)
 addDbusObject(dbusObjects, dbusConn, '/AcSensor/2/Energy', 30)
+
+addDbusObject(dbusObjects, dbusConn, '/Dc/V', 12.4)
 
 # Start and run the mainloop
 
