@@ -14,32 +14,17 @@ import inspect
 import platform
 from threading import Timer
 import argparse
+import logging
 
 # our own packages
-from vedbus import VeDbusItemExport
+from vedbus import VeDbusService
 
-softwareVersion = '1.0'
-
-# Dictionary containing all objects exported to dbus
-dbusObjects = {}
-
-def handleDbusNameOwnerChanged(name, oldOwner, newOwner):
-        #print('handlerNameOwnerChanged name=%s oldOwner=%s newOwner=%s' % (name, oldOwner, newOwner))
-        #decouple, and process in main loop
-        #idle_add(processNameOwnerChanged, name, oldOwner, newOwner)
-        pass
-
-def processNameOwnerChanged(name, oldOwner, newOwner):
-        #print 'processingNameOwnerChanged'
-        pass
-
-def addDbusObject(dictionary, dbusConn, path, value, isValid = True, description = '', callback = None):
-        dbusObjects[path] = VeDbusItemExport(dbusConn, path, value, isValid, description, callback)
+dbusservice = None
 
 def update():
 	p = '/Dc/V'
-	print 'value now for ' + p + ' ' + str(dbusObjects[p].GetValue()) + ', incrementing...'
-	dbusObjects[p].SetValue(dbusObjects[p].GetValue() + 1)
+	logging.info("value now for %s is %s, incrementing..." % (p, dbusservice.get_value(p)))
+	dbusservice.set_value(p, dbusservice.get_value(p) + 1)
 	gobject.timeout_add(1000, update)
 
 
@@ -51,64 +36,60 @@ parser = argparse.ArgumentParser(
 parser.add_argument("-n", "--name", help="the D-Bus service you want me to claim",
 				type=str, default="com.victronenergy.vebus.ttyO1")
 
-parser.add_argument("-d", "--deviceinstance", help="the device instance you want me to be",
+parser.add_argument("-i", "--deviceinstance", help="the device instance you want me to be",
 				type=str, default="0")
+
+parser.add_argument("-d", "--debug", help="set logging level to debug",
+				action="store_true")
 
 args = parser.parse_args()
 
-print __file__ + " starting up"
+# Init logging
+logging.basicConfig(level=(logging.DEBUG if args.debug else logging.INFO))
+logging.info(__file__ + " is starting up")
+logLevel = {0: 'NOTSET', 10: 'DEBUG', 20: 'INFO', 30: 'WARNING', 40: 'ERROR'}
+logging.info('Loglevel set to ' + logLevel[logging.getLogger().getEffectiveLevel()])
 
 # Have a mainloop, so we can send/receive asynchronous calls to and from dbus
 DBusGMainLoop(set_as_default=True)
 
-# For a PC, connect to the SessionBus
-# For a CCGX, connect to the SystemBus
-dbusConn = dbus.SystemBus() if (platform.machine() == 'armv7l') else dbus.SessionBus()
+dbusservice = VeDbusService(args.name)
 
-# Register ourserves on the dbus, fake that we are a Quattro
-name = dbus.service.BusName(args.name, dbusConn)
-print("registered on D-Bus as %s" % args.name)
-print("using device instance %s" % args.deviceinstance)
-
-# subscribe to NameOwnerChange for bus connect / disconnect events.
-dbusConn.add_signal_receiver(handleDbusNameOwnerChanged, signal_name='NameOwnerChanged')
-
-# Eerst de count opvragen
-# dan allemaal ophalen
+logging.info("using device instance %s" % args.deviceinstance)
 
 # Create the management objects, as specified in the ccgx dbus-api document
-addDbusObject(dbusObjects, dbusConn, '/Management/ProcessName', __file__)
-addDbusObject(dbusObjects, dbusConn, '/Management/ProcessVersion', softwareVersion + ' running on Python ' + platform.python_version())
-addDbusObject(dbusObjects, dbusConn, '/Management/Connection', 'Data taken from mk2dbus')
+dbusservice.add_path('/Management/ProcessName', __file__)
+dbusservice.add_path('/Management/ProcessVersion', 'Unkown version, and running on Python ' + platform.python_version())
+dbusservice.add_path('/Management/Connection', 'Data taken from mk2dbus')
 
 # Create the mandatory objects
-addDbusObject(dbusObjects, dbusConn, '/DeviceInstance', args.deviceinstance)
-addDbusObject(dbusObjects, dbusConn, '/ProductId', 0)
-addDbusObject(dbusObjects, dbusConn, '/ProductName', 'PV Inverter on Output')
-addDbusObject(dbusObjects, dbusConn, '/FirmwareVersion', 0)
-addDbusObject(dbusObjects, dbusConn, '/HardwareVersion', 0)
-addDbusObject(dbusObjects, dbusConn, '/Connected', 1)
+dbusservice.add_path('/DeviceInstance', args.deviceinstance)
+dbusservice.add_path('/ProductId', 0)
+dbusservice.add_path('/ProductName', 'PV Inverter on Output')
+dbusservice.add_path('/FirmwareVersion', 0)
+dbusservice.add_path('/HardwareVersion', 0)
+dbusservice.add_path('/Connected', 1)
 
 # Create all the objects that we want to export to the dbus
-addDbusObject(dbusObjects, dbusConn, '/AcSensor/Count', 2)
-addDbusObject(dbusObjects, dbusConn, '/AcSensor/0/Location', 0)
-addDbusObject(dbusObjects, dbusConn, '/AcSensor/0/Phase', 0)
-addDbusObject(dbusObjects, dbusConn, '/AcSensor/0/Power', 9000)
-addDbusObject(dbusObjects, dbusConn, '/AcSensor/0/Energy', 10)
+dbusservice.add_path('/AcSensor/Count', 2)
+dbusservice.add_path('/AcSensor/0/Location', 0)
+dbusservice.add_path('/AcSensor/0/Phase', 0)
+dbusservice.add_path('/AcSensor/0/Power', 9000)
+dbusservice.add_path('/AcSensor/0/Energy', 10)
 
-addDbusObject(dbusObjects, dbusConn, '/AcSensor/1/Location', 1)
-addDbusObject(dbusObjects, dbusConn, '/AcSensor/1/Phase', 2)
-addDbusObject(dbusObjects, dbusConn, '/AcSensor/1/Power', 9112)
-addDbusObject(dbusObjects, dbusConn, '/AcSensor/1/Energy', 20)
+dbusservice.add_path('/AcSensor/1/Location', 1)
+dbusservice.add_path('/AcSensor/1/Phase', 2)
+dbusservice.add_path('/AcSensor/1/Power', 9112)
+dbusservice.add_path('/AcSensor/1/Energy', 20)
 
-addDbusObject(dbusObjects, dbusConn, '/AcSensor/2/Location', 1)
-addDbusObject(dbusObjects, dbusConn, '/AcSensor/2/Phase', 0)
-addDbusObject(dbusObjects, dbusConn, '/AcSensor/2/Power', 9210)
-addDbusObject(dbusObjects, dbusConn, '/AcSensor/2/Energy', 30)
+dbusservice.add_path('/AcSensor/2/Location', 1)
+dbusservice.add_path('/AcSensor/2/Phase', 0)
+dbusservice.add_path('/AcSensor/2/Power', 9210)
+dbusservice.add_path('/AcSensor/2/Energy', 30)
 
-addDbusObject(dbusObjects, dbusConn, '/Dc/V', 12.4)
+dbusservice.add_path('/Dc/V', 12.4)
 
-# Start and run the mainloop
+dbusservice.add_path('/Devices/0/Version', 'testversie')
 
 
 gobject.timeout_add(1000, update)
