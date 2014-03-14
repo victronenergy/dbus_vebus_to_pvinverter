@@ -5,6 +5,8 @@
 # takes ACSensor data from the VEBus dbus service, and converts it into a nice looking
 # PV Inverter dbus service.
 
+# TODO: make sure that this program can cope with mk2bus not being available yet.
+
 from dbus.mainloop.glib import DBusGMainLoop
 import gobject
 from gobject import idle_add
