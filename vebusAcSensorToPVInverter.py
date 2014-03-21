@@ -71,7 +71,8 @@ class AcDevice(object):
 		# decouple, and process update in the mainloop
 		idle_add(self.update_values)
 
-	# iterates through all sensor dbusItems, and recalculates our values
+	# iterates through all sensor dbusItems, and recalculates our values. Adds objects to exported
+	# dbus values if necessary.
 	# called from handler_value_changes
 	def update_values(self):
 
@@ -97,10 +98,10 @@ class AcDevice(object):
 					# The quby ac-sensor dbus service also has some more: /NumberOfPhases and (per phase)
 					# Energy/Reverse.
 					self._dbusItems[pre + '/Power'] = VeDbusItemExport(self._dbusConn,
-						pre + '/Power', totalPower, isValid=True)
+						pre + '/Power', totalPower, isValid=True, gettextcallback=self.gettextW)
 
 					self._dbusItems[pre + '/Energy/Forward'] = VeDbusItemExport(self._dbusConn,
-						pre + '/Energy/Forward', totalEnergy, isValid=True)
+						pre + '/Energy/Forward', totalEnergy, isValid=True, gettextcallback=self.gettextkWh)
 
 				else:
 					self._dbusItems[pre + '/Power'].SetValue(totalPower)
@@ -182,6 +183,12 @@ class AcDevice(object):
 			logging.info(self.__str__() + ' has removed itself from dbus')
 
 		self.update_values()
+
+	def gettextkWh(self, path, value):
+		return ("%.3FkWh" % (float(value) / 1000.0))
+
+	def gettextW(self, path, value):
+		return ("%.0F" % (float(value)))
 
 
 def dbus_name_owner_changed(name, oldOwner, newOwner):
