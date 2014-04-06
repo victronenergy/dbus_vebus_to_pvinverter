@@ -24,7 +24,7 @@ import argparse
 # our own packages
 from vedbus import VeDbusItemExport, VeDbusItemImport, VEDBUS_INVALID
 
-softwareVersion = '1.10'
+softwareVersion = '1.11'
 
 # Dictionary containing all acDevices exported to dbus
 acDevices = {}
@@ -108,8 +108,8 @@ class AcDevice(object):
 						pre + '/Energy/Forward', totalEnergy, isValid=True, gettextcallback=self.gettextkWh)
 
 				else:
-					self._dbusItems[pre + '/Power'].SetValue(totalPower)
-					self._dbusItems[pre + '/Energy/Forward'].SetValue(totalEnergy)
+					self._dbusItems[pre + '/Power'].local_set_value(totalPower)
+					self._dbusItems[pre + '/Energy/Forward'].local_set_value(totalEnergy)
 
 				logging.debug(self._names[self._name] + '. Phase ' + phase +
 					' recalculated: %0.4f W and %0.4f kWh' % (totalPower, totalEnergy))
