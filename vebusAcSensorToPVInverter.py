@@ -22,9 +22,9 @@ import logging
 import argparse
 
 # our own packages
-from vedbus import VeDbusItemExport, VeDbusItemImport, VEDBUS_INVALID
+from vedbus import VeDbusService, VeDbusItemImport
 
-softwareVersion = '1.11'
+softwareVersion = 'A1.20'
 
 # Dictionary containing all acDevices exported to dbus
 acDevices = {}
@@ -32,84 +32,77 @@ acDevices = {}
 
 # Class representing one PV Inverter. I chose a more generic name, since in future it
 # will probably also become something else, such as a grid connection, or wind inverter
+class AcSensor():
+	def __init__(self, sensor_voltage=None, sensor_power=None, sensor_current=None, sensor_energycounter=None):
+		self.dbusobjects = {
+			'voltage': sensor_voltage,
+			'power':  sensor_power,
+			'current': sensor_current,
+			'energycounter': sensor_energycounter}
+
+	def __getitem__(self, key):
+		return self.dbusobjects[key]
+
+	def set_eventcallback(self, neweventcallback):
+		for key, dbusitem in self.dbusobjects.items():
+			if dbusitem:
+				dbusitem.eventCallback = neweventcallback
+
+
 class AcDevice(object):
 	def __init__(self, position):
 		# Dictionary containing the AC Sensors per phase. This is the source of the data
-		self._acSensorsPower = {'L1': [], 'L2': [], 'L3': []}
-		self._acSensorsEnergy = {'L1': [], 'L2': [], 'L3': []}
-
-		# Dictionary containing the dbusItems exporting the data to the dbus. So this is
-		# the destination of the data
-		self._dbusItems = {}
+		self._acSensors = {'L1': [], 'L2': [], 'L3': []}
 
 		# Type and position (numbering is equal to numbering in VE.Bus Assistant):
 		self._names = {0: 'PV Inverter on input 1', 1: 'PV Inverter on output', 2: 'PV Inverter on input 2'}
 		self._name = position
-
-		# keep a connection to dbus for the whole time. Only add & remove the dbusName when we find / lose
-		# sensors. I agree that it would sound logically to remove or not even start connection when not
-		# necessary. But couldn't find a way without causing the mainloop to stop: self._dbusConn.close()
-		# stops the mainloop even though this process has multiple busconnections. Another solution might be
-		# to stick with one connection, and publish multiple names. API docs hint that that should be
-		# possible.
-		self._dbusConn = dbus.SystemBus(True) if (platform.machine() == 'armv7l') else dbus.SessionBus(True)
-		self._dbusName = None
+		self._dbusService = None
 
 	def __str__(self):
 		return self._names[self._name] + ' containing ' + \
-			str(len(self._acSensorsPower['L1'])) + ' AC-sensors on L1, ' + \
-			str(len(self._acSensorsPower['L2'])) + ' AC-sensors on L2, ' + \
-			str(len(self._acSensorsPower['L3'])) + ' AC-sensors on L3'
+			str(len(self._acSensors['L1'])) + ' AC-sensors on L1, ' + \
+			str(len(self._acSensors['L2'])) + ' AC-sensors on L2, ' + \
+			str(len(self._acSensors['L3'])) + ' AC-sensors on L3'
 
-	# add_ac_sensor_power function is called to add dbusitems that represent power for a certain phase
-	def add_ac_sensor_power(self, dbusItem, phase='L1'):
-		dbusItem.eventCallback = self.handler_value_changes
-		self._acSensorsPower[phase].append(dbusItem)
+	# add_ac_sensor function is called to add dbusitems that represent power for a certain phase
+	def add_ac_sensor(self, acsensor, phase):
+		acsensor.set_eventcallback(self.value_has_changed)
+		self._acSensors[phase].append(acsensor)
 
-	# add_ac_sensor_energy function is called to add dbusitems that represent power for a certain phase
-	def add_ac_sensor_energy(self, dbusItem, phase='L1'):
-		dbusItem.eventCallback = self.handler_value_changes
-		self._acSensorsEnergy[phase].append(dbusItem)
-
-	def handler_value_changes(self, dbusName, dbusObjectPath, changes):
+	def value_has_changed(self, dbusName, dbusObjectPath, changes):
 		# decouple, and process update in the mainloop
 		idle_add(self.update_values)
 
 	# iterates through all sensor dbusItems, and recalculates our values. Adds objects to exported
 	# dbus values if necessary.
-	# called from handler_value_changes
 	def update_values(self):
 
 		for phase in ['L1', 'L2', 'L3']:
-			pre = '/AC/' + phase
+			pre = '/Ac/' + phase
 
-			if len(self._acSensorsPower[phase]) == 0:
-				if (pre + '/Power') in self._dbusItems:
-					self._dbusItems[pre + '/Power'].local_set_value(0, isValid=False)
-					self._dbusItems[pre + '/Energy/Forward'].local_set_value(0, isValid=False)
-					# TODO: remove them as well? Since we also don't export at startup when no sensors found
+			if len(self._acSensors[phase]) == 0:
+				if self._dbusService is not None and (pre + '/Power') in self._dbusService:
+					self._dbusService[pre + '/Power'] = None
+					self._dbusService[pre + '/Energy/Forward'] = None
 			else:
 				totalPower = 0
-				for o in self._acSensorsPower[phase]:
-					totalPower += float(o.GetValue())
-
 				totalEnergy = 0
-				for o in self._acSensorsEnergy[phase]:
-					totalEnergy += float(o.GetValue())
+				for o in self._acSensors[phase]:
+					totalPower += float(o['power'].get_value())
+					totalEnergy += float(o['energycounter'].get_value())
 
-				if (pre + '/Power') not in self._dbusItems:
-					# Create all the objects that we want to export to the dbus
+
+				if (pre + '/Power') not in self._dbusService:
+					# This phase hasn't been added yet, adding it now
+
 					# The quby ac-sensor dbus service also has some more: /NumberOfPhases and (per phase)
 					# Energy/Reverse.
-					self._dbusItems[pre + '/Power'] = VeDbusItemExport(self._dbusConn,
-						pre + '/Power', totalPower, isValid=True, gettextcallback=self.gettextW)
-
-					self._dbusItems[pre + '/Energy/Forward'] = VeDbusItemExport(self._dbusConn,
-						pre + '/Energy/Forward', totalEnergy, isValid=True, gettextcallback=self.gettextkWh)
-
+					self._dbusService.add_path(pre + '/Power', totalPower, gettextcallback=self.gettextforW)
+					self._dbusService.add_path(pre + '/Energy/Forward', totalEnergy, gettextcallback=self.gettextforkWh)
 				else:
-					self._dbusItems[pre + '/Power'].local_set_value(totalPower)
-					self._dbusItems[pre + '/Energy/Forward'].local_set_value(totalEnergy)
+					self._dbusService[pre + '/Power'] = totalPower
+					self._dbusService[pre + '/Energy/Forward'] = totalEnergy
 
 				logging.debug(self._names[self._name] + '. Phase ' + phase +
 					' recalculated: %0.4f W and %0.4f kWh' % (totalPower, totalEnergy))
@@ -121,88 +114,69 @@ class AcDevice(object):
 	# Call this function after you have added AC sensors to this class. Code will check if we have any,
 	# and if yes, add ourselves to the dbus.
 	def update_dbus_service(self):
-		if (len(self._acSensorsPower['L1']) > 0 or len(self._acSensorsPower['L2']) > 0 or
-			len(self._acSensorsPower['L3']) > 0):
+		if (len(self._acSensors['L1']) > 0 or len(self._acSensors['L2']) > 0 or
+			len(self._acSensors['L3']) > 0):
 
-			if self._dbusName is None:
+			logging.debug('name %s: dbusservice %s' % (self._name, self._dbusService))
+			if self._dbusService is None:
 
 				pf = {0: 'input1', 1: 'output', 2: 'input2'}
-				self._dbusName = dbus.service.BusName("com.victronenergy.pvinverter.vebusacsensor_" + pf[self._name],
-														self._dbusConn)
+				self._dbusService = VeDbusService('com.victronenergy.pvinverter.vebusacsensor_' + pf[self._name])
+				#, self._dbusConn)
 
-				self._dbusItems['/Position'] = VeDbusItemExport(self._dbusConn,
-					'/Position', self._name, gettextcallback=self.gettextposition)
+				self._dbusService.add_path('/Position', self._name, description=None, gettextcallback=self.gettextforposition)
 
 				# Create the mandatory objects, as per victron dbus api document
-				self._dbusItems['/Mgmt/ProcessName'] = VeDbusItemExport(self._dbusConn,
-					'/Mgmt/ProcessName', __file__)
-
-				self._dbusItems['/Mgmt/ProcessVersion'] = VeDbusItemExport(self._dbusConn,
-					'/Mgmt/ProcessVersion', softwareVersion + ' running on Python ' + platform.python_version())
-
-				self._dbusItems['/Mgmt/Connection'] = VeDbusItemExport(self._dbusConn,
-					'/Mgmt/Connection', 'AC Sensor on VE.Bus ')
-
-				self._dbusItems['/DeviceInstance'] = VeDbusItemExport(self._dbusConn,
-					'/DeviceInstance', 0)
-
-				self._dbusItems['/ProductId'] = VeDbusItemExport(self._dbusConn,
-					'/ProductId', 0)
-
-				self._dbusItems['/ProductName'] = VeDbusItemExport(self._dbusConn, '/ProductName',
-					self._names[self._name])
-
-				self._dbusItems['/Connected'] = VeDbusItemExport(self._dbusConn,
-					'/Connected', 1)
+				self._dbusService.add_path('/Mgmt/ProcessName', __file__)
+				self._dbusService.add_path('/Mgmt/ProcessVersion', softwareVersion)
+				self._dbusService.add_path('/Mgmt/Connection', 'AC Sensor on VE.Bus device')
+				self._dbusService.add_path('/DeviceInstance', self._name)
+				# TODO, set productid to correct value
+				self._dbusService.add_path('/ProductId', 0x2342, gettextcallback=self.gettextforproductid)
+				self._dbusService.add_path('/ProductName', self._names[self._name])
+				self._dbusService.add_path('/Connected', 1)
 
 				logging.info('Added to D-Bus: ' + self.__str__())
 
 			self.update_values()
 
-	# scan all ac sensor items we have, and see if we need to remove something.
-	def remove_service_imported_from(self, serviceName):
-
+	# Apparantly some service from which we imported AC Sensors has gone offline. Remove those sensors
+	# from our repo.
+	def remove_ac_sensors_imported_from(self, serviceBeingRemoved):
+		logging.debug('%s: Removing ac_sensors imported from %s' % (self._names[self._name], serviceBeingRemoved))
 		for phase in ['L1', 'L2', 'L3']:
-			for o in self._acSensorsPower[phase]:
-				if o.serviceName == serviceName:
-					self._acSensorsPower[phase].remove(o)
-
-			for o in self._acSensorsEnergy[phase]:
-				if o.serviceName == serviceName:
-					self._acSensorsEnergy[phase].remove(o)
+			for o in self._acSensors[phase]:
+				if o['power'].serviceName == serviceBeingRemoved:
+					self._acSensors[phase].remove(o)
 
 		if (
-			not self._acSensorsPower['L1'] and not self._acSensorsPower['L2'] and
-			not self._acSensorsPower['L3'] and self._dbusName is not None):
+			not self._acSensors['L1'] and not self._acSensors['L2'] and
+			not self._acSensors['L3'] and self._dbusService is not None):
 
-			# There are no sensors left: take ourselves off the dbus
-			r = []
-			for k, o in self._dbusItems.iteritems():
-				o.remove_from_connection()
-				r.append(k)
-
-			# can't remove items during above iteration, so do it afterwards
-			for k in r:
-				del self._dbusItems[k]
-
+			# TODO: finish this stuff about invalidating all or deleting it all
 			# Explicitly call __del__ since we don't want to wait for the garbage collector.
-			# we want to go offline sofort
-			self._dbusName.__del__()
-			self._dbusName = None
+			# we want to go offline now.
+
+			# Or we stay online, and just invalidate everything?
+			self._dbusService.__del__()
+			self._dbusService = None
 
 			logging.info(self.__str__() + ' has removed itself from dbus')
 
 		self.update_values()
 
-	def gettextkWh(self, path, value):
+	def gettextforkWh(self, path, value):
 		return ("%.3FkWh" % (float(value) / 1000.0))
 
-	def gettextW(self, path, value):
+	def gettextforW(self, path, value):
 		return ("%.0FW" % (float(value)))
 
-	def gettextposition(self, path, value):
+	def gettextforposition(self, path, value):
 		return self._names[value]
 
+	def gettextforproductid(self, path, value):
+		#TODO, format value as 0x02DF
+		return 'adssad'
 
 def dbus_name_owner_changed(name, oldOwner, newOwner):
 	#decouple, and process in main loop
@@ -216,7 +190,7 @@ def process_name_owner_changed(name, oldOwner, newOwner):
 		scan_dbus_service(name)
 	else:
 		for a, b in acDevices.iteritems():
-			b.remove_service_imported_from(name)
+			b.remove_ac_sensors_imported_from(name)
 
 
 # Scans the given dbus service to see if it contains anything interesting for us.
@@ -228,9 +202,9 @@ def scan_dbus_service(serviceName):
 	logging.info("Found: %s, checking for valid AC Current Sensors" % serviceName)
 
 	# TODO 1: put a signal monitor on the acSensorCount, for when someone changes the config in the Multi.
-	acSensorCount = VeDbusItemImport(dbusConn, serviceName, '/AcSensor/Count').GetValue()
+	acSensorCount = VeDbusItemImport(dbusConn, serviceName, '/AcSensor/Count').get_value()
 
-	if acSensorCount == VEDBUS_INVALID:
+	if acSensorCount is None:
 		logging.info("Sensor count is invalid: mk2 service is still reading data from vebus. Retry in 5 secs.")
 		gobject.timeout_add(5000, scan_dbus_service, serviceName)
 		return
@@ -242,9 +216,9 @@ def scan_dbus_service(serviceName):
 
 		# TODO 1: put a signal monitor on the location and the phase?
 		location = VeDbusItemImport(dbusConn, serviceName,
-				'/AcSensor/' + str(x) + '/Location').GetValue()
+				'/AcSensor/' + str(x) + '/Location').get_value()
 		phase = 'L' + str(VeDbusItemImport(dbusConn, serviceName,
-				'/AcSensor/' + str(x) + '/Phase').GetValue() + 1)
+				'/AcSensor/' + str(x) + '/Phase').get_value() + 1)
 
 		logging.info('AC Sensor on /AcSensor/' + str(x) + ', location: ' + str(location) +
 			', phase: ' + phase)
@@ -255,11 +229,11 @@ def scan_dbus_service(serviceName):
 		# Monitor Power and the kWh counter. Note that the kWh counter restarts at 0 on when the Multi
 		# powers up. And there is more available on dbus (voltage & current), but we are not interested
 		# in that, so leave it.
-		acDevices[location].add_ac_sensor_power(VeDbusItemImport(
-			dbusConn, serviceName, '/AcSensor/' + str(x) + '/Power'), phase)
+		newacsensor = AcSensor(
+			sensor_power=VeDbusItemImport(dbusConn, serviceName, '/AcSensor/' + str(x) + '/Power'),
+			sensor_energycounter=VeDbusItemImport(dbusConn, serviceName, '/AcSensor/' + str(x) + '/Energy'))
 
-		acDevices[location].add_ac_sensor_energy(VeDbusItemImport(
-			dbusConn, serviceName, '/AcSensor/' + str(x) + '/Energy'), phase)
+		acDevices[location].add_ac_sensor(newacsensor, phase)
 
 	for a, b in acDevices.iteritems():
 		b.update_dbus_service()

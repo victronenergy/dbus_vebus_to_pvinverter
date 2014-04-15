@@ -22,9 +22,9 @@ from vedbus import VeDbusService
 dbusservice = None
 
 def update():
-	p = '/Dc/V'
-	logging.info("value now for %s is %s, incrementing..." % (p, dbusservice.get_value(p)))
-	dbusservice.set_value(p, dbusservice.get_value(p) + 1)
+	p = '/AcSensor/0/Power'
+	logging.info("value now for %s is %s, incrementing..." % (p, dbusservice[p]))
+	dbusservice[p] += 1
 	gobject.timeout_add(1000, update)
 
 
