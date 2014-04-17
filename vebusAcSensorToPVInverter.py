@@ -24,7 +24,7 @@ import argparse
 # our own packages
 from vedbus import VeDbusService, VeDbusItemImport
 
-softwareVersion = 'A1.20'
+softwareVersion = 'B1.20'
 
 # Dictionary containing all acDevices exported to dbus
 acDevices = {}
@@ -85,27 +85,33 @@ class AcDevice(object):
 				if self._dbusService is not None and (pre + '/Power') in self._dbusService:
 					self._dbusService[pre + '/Power'] = None
 					self._dbusService[pre + '/Energy/Forward'] = None
+					self._dbusService[pre + '/Voltage'] = None
+					self._dbusService[pre + '/Current'] = None
 			else:
 				totalPower = 0
 				totalEnergy = 0
+				totalCurrent = 0
 				for o in self._acSensors[phase]:
 					totalPower += float(o['power'].get_value())
 					totalEnergy += float(o['energycounter'].get_value())
-
+					totalCurrent += float(o['current'].get_value())
+					voltage = float(o['voltage'].get_value()) # just take the last voltage
 
 				if (pre + '/Power') not in self._dbusService:
 					# This phase hasn't been added yet, adding it now
 
-					# The quby ac-sensor dbus service also has some more: /NumberOfPhases and (per phase)
-					# Energy/Reverse.
 					self._dbusService.add_path(pre + '/Power', totalPower, gettextcallback=self.gettextforW)
 					self._dbusService.add_path(pre + '/Energy/Forward', totalEnergy, gettextcallback=self.gettextforkWh)
+					self._dbusService.add_path(pre + '/Voltage', voltage, gettextcallback=self.gettextforV)
+					self._dbusService.add_path(pre + '/Current', totalCurrent, gettextcallback=self.gettextforA)
 				else:
 					self._dbusService[pre + '/Power'] = totalPower
 					self._dbusService[pre + '/Energy/Forward'] = totalEnergy
+					self._dbusService[pre + '/Voltage'] = voltage
+					self._dbusService[pre + '/Current'] = totalCurrent
 
 				logging.debug(self._names[self._name] + '. Phase ' + phase +
-					' recalculated: %0.4f W and %0.4f kWh' % (totalPower, totalEnergy))
+					' recalculated: %0.2fV,  %0.2fA, %0.4fW and %0.4f kWh' % (voltage, totalCurrent, totalPower, totalEnergy))
 
 			# TODO, why doesn't the application crash on an exception? I want it to crash, also on exceptions
 			# in threads.
@@ -130,9 +136,9 @@ class AcDevice(object):
 				self._dbusService.add_path('/Mgmt/ProcessName', __file__)
 				self._dbusService.add_path('/Mgmt/ProcessVersion', softwareVersion)
 				self._dbusService.add_path('/Mgmt/Connection', 'AC Sensor on VE.Bus device')
-				self._dbusService.add_path('/DeviceInstance', self._name)
+				self._dbusService.add_path('/DeviceInstance', int(self._name) + 10)
 				# TODO, set productid to correct value
-				self._dbusService.add_path('/ProductId', 0x2342, gettextcallback=self.gettextforproductid)
+				self._dbusService.add_path('/ProductId', 0xA141, gettextcallback=self.gettextforproductid)
 				self._dbusService.add_path('/ProductName', self._names[self._name])
 				self._dbusService.add_path('/Connected', 1)
 
@@ -170,6 +176,12 @@ class AcDevice(object):
 
 	def gettextforW(self, path, value):
 		return ("%.0FW" % (float(value)))
+
+	def gettextforV(self, path, value):
+		return ("%.0FV" % (float(value)))
+
+	def gettextforA(self, path, value):
+		return ("%.0FA" % (float(value)))
 
 	def gettextforposition(self, path, value):
 		return self._names[value]
@@ -231,7 +243,9 @@ def scan_dbus_service(serviceName):
 		# in that, so leave it.
 		newacsensor = AcSensor(
 			sensor_power=VeDbusItemImport(dbusConn, serviceName, '/AcSensor/' + str(x) + '/Power'),
-			sensor_energycounter=VeDbusItemImport(dbusConn, serviceName, '/AcSensor/' + str(x) + '/Energy'))
+			sensor_energycounter=VeDbusItemImport(dbusConn, serviceName, '/AcSensor/' + str(x) + '/Energy'),
+			sensor_voltage=VeDbusItemImport(dbusConn, serviceName, '/AcSensor/' + str(x) + '/Voltage'),
+			sensor_current=VeDbusItemImport(dbusConn, serviceName, '/AcSensor/' + str(x) + '/Current'))
 
 		acDevices[location].add_ac_sensor(newacsensor, phase)
 
