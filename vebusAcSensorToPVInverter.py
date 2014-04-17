@@ -24,7 +24,7 @@ import argparse
 # our own packages
 from vedbus import VeDbusService, VeDbusItemImport
 
-softwareVersion = 'B1.20'
+softwareVersion = '1.20'
 
 # Dictionary containing all acDevices exported to dbus
 acDevices = {}
