@@ -1,7 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
-
-#!/usr/bin/python -u
 
 ## @package conversions
 # takes data from the dbus, does calculations with it, and puts it back on
@@ -15,8 +12,11 @@ import platform
 from threading import Timer
 import argparse
 import logging
+import sys
+import os
 
 # our own packages
+sys.path.insert(1, os.path.join(os.path.dirname(__file__), './ext/velib_python'))
 from vedbus import VeDbusService
 
 dbusservice = None

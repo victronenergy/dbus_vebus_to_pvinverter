@@ -140,8 +140,7 @@ class AcDevice(object):
 				self._dbusService.add_path('/Mgmt/ProcessVersion', softwareVersion)
 				self._dbusService.add_path('/Mgmt/Connection', 'AC Sensor on VE.Bus device')
 				self._dbusService.add_path('/DeviceInstance', int(self._name) + 10)
-				# TODO, set productid to correct value
-				self._dbusService.add_path('/ProductId', 0xA141, gettextcallback=self.gettextforproductid)
+				self._dbusService.add_path('/ProductId', 0xA141)
 				self._dbusService.add_path('/ProductName', self._names[self._name])
 				self._dbusService.add_path('/Connected', 1)
 
@@ -189,12 +188,8 @@ class AcDevice(object):
 	def gettextforposition(self, path, value):
 		return self._names[value]
 
-	def gettextforproductid(self, path, value):
-		#TODO, format value as 0x02DF
-		return 'adssad'
-
 def dbus_name_owner_changed(name, oldOwner, newOwner):
-	#decouple, and process in main loop
+	# decouple, and process in main loop
 	idle_add(process_name_owner_changed, name, oldOwner, newOwner)
 
 
