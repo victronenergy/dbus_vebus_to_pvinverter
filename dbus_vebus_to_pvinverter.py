@@ -1,7 +1,6 @@
 #!/usr/bin/python -u
 # -*- coding: utf-8 -*-
 
-## @package conversions
 # takes ACSensor data from one or more VEBus dbus services, and converts it into a nice looking
 # PV Inverter dbus service.
 
@@ -27,7 +26,7 @@ import os
 sys.path.insert(1, os.path.join(os.path.dirname(__file__), './ext/velib_python'))
 from vedbus import VeDbusService, VeDbusItemImport
 
-softwareVersion = '1.20'
+softwareVersion = '1.21'
 
 # Dictionary containing all acDevices exported to dbus
 acDevices = {}
