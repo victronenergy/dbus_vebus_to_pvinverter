@@ -16,7 +16,7 @@ import sys
 import os
 
 # our own packages
-sys.path.insert(1, os.path.join(os.path.dirname(__file__), './ext/velib_python'))
+sys.path.insert(1, os.path.join(os.path.dirname(__file__), '../ext/velib_python'))
 from vedbus import VeDbusService
 
 dbusservice = None
