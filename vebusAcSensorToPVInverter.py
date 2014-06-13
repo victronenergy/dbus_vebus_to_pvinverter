@@ -20,8 +20,11 @@ import inspect
 import platform
 import logging
 import argparse
+import sys
+import os
 
-# our own packages
+# Victron packages
+sys.path.insert(1, os.path.join(os.path.dirname(__file__), './ext/velib_python'))
 from vedbus import VeDbusService, VeDbusItemImport
 
 softwareVersion = '1.20'
