@@ -32,8 +32,7 @@ softwareVersion = '1.21'
 acDevices = {}
 
 
-# Class representing one PV Inverter. I chose a more generic name, since in future it
-# will probably also become something else, such as a grid connection, or wind inverter
+# One VE.Bus AC Sensor, contains links to the four D-Bus items
 class AcSensor():
 	def __init__(self, sensor_voltage=None, sensor_power=None, sensor_current=None, sensor_energycounter=None):
 		self.dbusobjects = {
@@ -51,6 +50,8 @@ class AcSensor():
 				dbusitem.eventCallback = neweventcallback
 
 
+# Class representing one PV Inverter. I chose a more generic name, since in future it
+# will probably also become something else, such as a grid connection, or wind inverter
 class AcDevice(object):
 	def __init__(self, position):
 		# Dictionary containing the AC Sensors per phase. This is the source of the data
@@ -80,44 +81,61 @@ class AcDevice(object):
 	# dbus values if necessary.
 	def update_values(self):
 
+		if not self._dbusService:
+			return
+
+		totals = {'I': 0, 'P': 0, 'E': 0}
+
 		for phase in ['L1', 'L2', 'L3']:
 			pre = '/Ac/' + phase
 
 			if len(self._acSensors[phase]) == 0:
-				if self._dbusService is not None and (pre + '/Power') in self._dbusService:
+				if (pre + '/Power') in self._dbusService:
 					self._dbusService[pre + '/Power'] = None
 					self._dbusService[pre + '/Energy/Forward'] = None
 					self._dbusService[pre + '/Voltage'] = None
 					self._dbusService[pre + '/Current'] = None
 			else:
-				totalPower = 0
-				totalEnergy = 0
-				totalCurrent = 0
+				phaseTotals = {'I': 0, 'P': 0, 'E': 0}
 				for o in self._acSensors[phase]:
-					totalPower += float(o['power'].get_value())
-					totalEnergy += float(o['energycounter'].get_value())
-					totalCurrent += float(o['current'].get_value())
+					phaseTotals['I'] += float(o['current'].get_value())
+					phaseTotals['P'] += float(o['power'].get_value())
+					phaseTotals['E'] += float(o['energycounter'].get_value())
 					voltage = float(o['voltage'].get_value()) # just take the last voltage
 
 				if (pre + '/Power') not in self._dbusService:
 					# This phase hasn't been added yet, adding it now
 
-					self._dbusService.add_path(pre + '/Power', totalPower, gettextcallback=self.gettextforW)
-					self._dbusService.add_path(pre + '/Energy/Forward', totalEnergy, gettextcallback=self.gettextforkWh)
 					self._dbusService.add_path(pre + '/Voltage', voltage, gettextcallback=self.gettextforV)
-					self._dbusService.add_path(pre + '/Current', totalCurrent, gettextcallback=self.gettextforA)
+					self._dbusService.add_path(pre + '/Current', phaseTotals['I'], gettextcallback=self.gettextforA)
+					self._dbusService.add_path(pre + '/Power', phaseTotals['P'], gettextcallback=self.gettextforW)
+					self._dbusService.add_path(pre + '/Energy/Forward', phaseTotals['E'], gettextcallback=self.gettextforkWh)
 				else:
-					self._dbusService[pre + '/Power'] = totalPower
-					self._dbusService[pre + '/Energy/Forward'] = totalEnergy
 					self._dbusService[pre + '/Voltage'] = voltage
-					self._dbusService[pre + '/Current'] = totalCurrent
+					self._dbusService[pre + '/Current'] = phaseTotals['I']
+					self._dbusService[pre + '/Power'] = phaseTotals['P']
+					self._dbusService[pre + '/Energy/Forward'] = phaseTotals['E']
 
-				logging.debug(self._names[self._name] + '. Phase ' + phase +
-					' recalculated: %0.2fV,  %0.2fA, %0.4fW and %0.4f kWh' % (voltage, totalCurrent, totalPower, totalEnergy))
+				totals['I'] += phaseTotals['I']
+				totals['P'] += phaseTotals['P']
+				totals['E'] += phaseTotals['E']
+
+				#logging.debug(
+				#	self._names[self._name] + '. Phase ' + phase + ' recalculated: %0.2fV,  %0.2fA, %0.4fW and %0.4f kWh' %
+				#	(voltage,  phaseTotals['I'],  phaseTotals['P'],  phaseTotals['E']))
 
 			# TODO, why doesn't the application crash on an exception? I want it to crash, also on exceptions
 			# in threads.
 			#raise Exception ("exit Exception!")
+
+		if '/Ac/Current' not in self._dbusService:
+			self._dbusService.add_path('/Ac/Current', totals['I'], gettextcallback=self.gettextforA)
+			self._dbusService.add_path('/Ac/Power', totals['P'], gettextcallback=self.gettextforW)
+			self._dbusService.add_path('/Ac/Energy/Forward', totals['E'], gettextcallback=self.gettextforkWh)
+		else:
+			self._dbusService['/Ac/Current'] = totals['I']
+			self._dbusService['/Ac/Power'] =  totals['P']
+			self._dbusService['/Ac/Energy/Forward'] = totals['E']
 
 	# Call this function after you have added AC sensors to this class. Code will check if we have any,
 	# and if yes, add ourselves to the dbus.
@@ -125,7 +143,6 @@ class AcDevice(object):
 		if (len(self._acSensors['L1']) > 0 or len(self._acSensors['L2']) > 0 or
 			len(self._acSensors['L3']) > 0):
 
-			logging.debug('name %s: dbusservice %s' % (self._name, self._dbusService))
 			if self._dbusService is None:
 
 				pf = {0: 'input1', 1: 'output', 2: 'input2'}
@@ -150,16 +167,18 @@ class AcDevice(object):
 	# Apparantly some service from which we imported AC Sensors has gone offline. Remove those sensors
 	# from our repo.
 	def remove_ac_sensors_imported_from(self, serviceBeingRemoved):
-		logging.debug('%s: Removing ac_sensors imported from %s' % (self._names[self._name], serviceBeingRemoved))
+		logging.debug(
+			'%s: Checking if we have sensors from %s, and removing them' %
+			(self._names[self._name], serviceBeingRemoved))
 		for phase in ['L1', 'L2', 'L3']:
 			self._acSensors[phase][:] = [x for x in self._acSensors[phase] if not x['power'].serviceName == serviceBeingRemoved]
 
 		if self._dbusService is None:
 			return
 
-		if (
-			not self._acSensors['L1'] and not self._acSensors['L2'] and
-			not self._acSensors['L3'] and self._dbusService is not None):
+		if (not self._acSensors['L1'] and not self._acSensors['L2'] and
+			not self._acSensors['L3']):
+			# No sensors left for us, clean up
 
 			# TODO: finish this stuff about invalidating all or deleting it all
 			# Explicitly call __del__ since we don't want to wait for the garbage collector.
@@ -169,9 +188,10 @@ class AcDevice(object):
 			self._dbusService.__del__()
 			self._dbusService = None
 
-			logging.info(self.__str__() + ' has removed itself from dbus')
-
-		self.update_values()
+			logging.info("Removed from D-Bus: %s" % self.__str__())
+		else:
+			# Still some sensors left for us, update values
+			self.update_values()
 
 	def gettextforkWh(self, path, value):
 		return ("%.3FkWh" % (float(value) / 1000.0))
@@ -187,6 +207,7 @@ class AcDevice(object):
 
 	def gettextforposition(self, path, value):
 		return self._names[value]
+
 
 def dbus_name_owner_changed(name, oldOwner, newOwner):
 	# decouple, and process in main loop
@@ -236,9 +257,6 @@ def scan_dbus_service(serviceName):
 		if location not in acDevices:
 			raise Exception('Unexpected AC Current Sensor Location: ' + str(location))
 
-		# Monitor Power and the kWh counter. Note that the kWh counter restarts at 0 on when the Multi
-		# powers up. And there is more available on dbus (voltage & current), but we are not interested
-		# in that, so leave it.
 		newacsensor = AcSensor(
 			sensor_power=VeDbusItemImport(dbusConn, serviceName, '/AcSensor/' + str(x) + '/Power'),
 			sensor_energycounter=VeDbusItemImport(dbusConn, serviceName, '/AcSensor/' + str(x) + '/Energy'),

@@ -65,13 +65,13 @@ dbusservice.add_path('/Management/Connection', 'Data taken from mk2dbus')
 # Create the mandatory objects
 dbusservice.add_path('/DeviceInstance', args.deviceinstance)
 dbusservice.add_path('/ProductId', 0)
-dbusservice.add_path('/ProductName', 'PV Inverter on Output')
+dbusservice.add_path('/ProductName', 'vebus device with ac sensors')
 dbusservice.add_path('/FirmwareVersion', 0)
 dbusservice.add_path('/HardwareVersion', 0)
 dbusservice.add_path('/Connected', 1)
 
 # Create all the objects that we want to export to the dbus
-dbusservice.add_path('/AcSensor/Count', 2)
+dbusservice.add_path('/AcSensor/Count', 3)
 dbusservice.add_path('/AcSensor/0/Location', 0)
 dbusservice.add_path('/AcSensor/0/Phase', 0)
 dbusservice.add_path('/AcSensor/0/Power', 1000)
@@ -84,13 +84,14 @@ dbusservice.add_path('/AcSensor/1/Phase', 0)
 dbusservice.add_path('/AcSensor/1/Power', 1500)
 dbusservice.add_path('/AcSensor/1/Energy', 150)
 dbusservice.add_path('/AcSensor/1/Current', 15)
-dbusservice.add_path('/AcSensor/1/Voltage', 220)
+dbusservice.add_path('/AcSensor/1/Voltage', 221)
 
 dbusservice.add_path('/AcSensor/2/Location', 1)
 dbusservice.add_path('/AcSensor/2/Phase', 0)
 dbusservice.add_path('/AcSensor/2/Power', 9210)
 dbusservice.add_path('/AcSensor/2/Energy', 30)
-
+dbusservice.add_path('/AcSensor/2/Current', 5)
+dbusservice.add_path('/AcSensor/2/Voltage', 222)
 dbusservice.add_path('/Dc/V', 12.4)
 
 dbusservice.add_path('/Devices/0/Version', 'testversie')
