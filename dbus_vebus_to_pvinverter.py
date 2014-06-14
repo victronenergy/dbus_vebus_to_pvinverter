@@ -152,9 +152,10 @@ class AcDevice(object):
 	def remove_ac_sensors_imported_from(self, serviceBeingRemoved):
 		logging.debug('%s: Removing ac_sensors imported from %s' % (self._names[self._name], serviceBeingRemoved))
 		for phase in ['L1', 'L2', 'L3']:
-			for o in self._acSensors[phase]:
-				if o['power'].serviceName == serviceBeingRemoved:
-					self._acSensors[phase].remove(o)
+			self._acSensors[phase][:] = [x for x in self._acSensors[phase] if not x['power'].serviceName == serviceBeingRemoved]
+
+		if self._dbusService is None:
+			return
 
 		if (
 			not self._acSensors['L1'] and not self._acSensors['L2'] and
