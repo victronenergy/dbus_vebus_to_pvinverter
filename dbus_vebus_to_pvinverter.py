@@ -31,7 +31,6 @@ softwareVersion = '1.22'
 # Dictionary containing all acDevices exported to dbus
 acDevices = {}
 
-
 # One VE.Bus AC Sensor, contains links to the four D-Bus items
 class AcSensor():
 	def __init__(self, sensor_voltage=None, sensor_power=None, sensor_current=None, sensor_energycounter=None):
@@ -180,12 +179,7 @@ class AcDevice(object):
 			not self._acSensors['L3']):
 			# No sensors left for us, clean up
 
-			# TODO: finish this stuff about invalidating all or deleting it all
-			# Explicitly call __del__ since we don't want to wait for the garbage collector.
-			# we want to go offline now.
-
-			# Or we stay online, and just invalidate everything?
-			self._dbusService.__del__()
+			self._dbusService.__del__()  # explicitly call __del__(), instead of waiting for gc
 			self._dbusService = None
 
 			logging.info("Removed from D-Bus: %s" % self.__str__())
