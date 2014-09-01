@@ -243,9 +243,9 @@ def countchanged(servicename, path, changes, skipremove=False):
 
 		# TODO 1: put a signal monitor on the location and the phase?
 		location = VeDbusItemImport(dbusConn, servicename,
-				'/AcSensor/' + str(x) + '/Location').get_value()
+				'/AcSensor/' + str(x) + '/Location', createsignal=False).get_value()
 		phase = 'L' + str(VeDbusItemImport(dbusConn, servicename,
-				'/AcSensor/' + str(x) + '/Phase').get_value() + 1)
+				'/AcSensor/' + str(x) + '/Phase', createsignal=False).get_value() + 1)
 
 		logging.info('AC Sensor on /AcSensor/' + str(x) + ', location: ' + str(location) +
 			', phase: ' + phase)
