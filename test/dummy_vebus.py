@@ -71,7 +71,7 @@ dbusservice.add_path('/HardwareVersion', 0)
 dbusservice.add_path('/Connected', 1)
 
 # Create all the objects that we want to export to the dbus
-dbusservice.add_path('/AcSensor/Count', 3)
+dbusservice.add_path('/AcSensor/Count', None, writeable=True)
 dbusservice.add_path('/AcSensor/0/Location', 0)
 dbusservice.add_path('/AcSensor/0/Phase', 0)
 dbusservice.add_path('/AcSensor/0/Power', 1000)
@@ -98,6 +98,14 @@ dbusservice.add_path('/Devices/0/Version', 'testversie')
 
 
 gobject.timeout_add(1000, update)
+
+def increase_count():
+	global dbusservice
+	print 'Increasing count'
+	dbusservice['/AcSensor/Count'] = 3
+	return False
+
+gobject.timeout_add(3000, increase_count)
 
 print 'Connected to dbus, and switching over to gobject.MainLoop() (= event based)'
 mainloop = gobject.MainLoop()

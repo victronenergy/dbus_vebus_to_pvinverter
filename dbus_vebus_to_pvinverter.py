@@ -4,12 +4,6 @@
 # takes ACSensor data from one or more VEBus dbus services, and converts it into a nice looking
 # PV Inverter dbus service.
 
-# TODO:
-# - (optional) when sensors change from location, update ourselves. Or just exit, and let us be restarted.
-#   See TODO 1 in the code.
-# - Perhaps add the DBus items used in GUI item AC Totals: /AC/Power, /AC/Current and /AC/Energy/Forward. As
-#   qwacs has them as well. Or change QML that QML does the calculation.
-
 from dbus.mainloop.glib import DBusGMainLoop
 import gobject
 from gobject import idle_add
@@ -30,6 +24,9 @@ softwareVersion = '1.23'
 
 # Dictionary containing all acDevices exported to dbus
 acDevices = {}
+
+# Dict, key is the servicename, Value is the VeDbusItemImport object, monitoring /AcSensor/Count
+sensorcounts = {}
 
 # One VE.Bus AC Sensor, contains links to the four D-Bus items
 class AcSensor():
@@ -169,6 +166,7 @@ class AcDevice(object):
 		logging.debug(
 			'%s: Checking if we have sensors from %s, and removing them' %
 			(self._names[self._name], serviceBeingRemoved))
+
 		for phase in ['L1', 'L2', 'L3']:
 			self._acSensors[phase][:] = [x for x in self._acSensors[phase] if not x['power'].serviceName == serviceBeingRemoved]
 
@@ -214,8 +212,57 @@ def process_name_owner_changed(name, oldOwner, newOwner):
 	if newOwner != '':
 		scan_dbus_service(name)
 	else:
+		logging.info("Disappeared: %s, removing its AC Current Sensors (if it had any)" % name)
 		for a, b in acDevices.iteritems():
 			b.remove_ac_sensors_imported_from(name)
+
+
+# Function is called when a new vebus service is found, and also when the count changes.
+def countchanged(servicename, path, changes, skipremove=False):
+
+	acSensorCount = sensorcounts[servicename].get_value()
+
+	logging.info(
+		"New service added, or sensorcount was changed on an existing service. Count for %s is now %s" %
+		(servicename, acSensorCount))
+
+	# First remove the service
+	if not skipremove:
+		for a, b in acDevices.iteritems():
+			b.remove_ac_sensors_imported_from(servicename)
+
+	# Note that the mk2 service will first come on to the D-Bus with an invalidated sensor count,
+	# and only after a couple of seconds (while communicating with the Multi), it will set it to 0
+	# or something else.
+
+	if acSensorCount is None:
+		return
+
+	# loop through all the ac current sensors in the system, and add to right acDevice object
+	for x in range(0, acSensorCount):
+
+		# TODO 1: put a signal monitor on the location and the phase?
+		location = VeDbusItemImport(dbusConn, servicename,
+				'/AcSensor/' + str(x) + '/Location').get_value()
+		phase = 'L' + str(VeDbusItemImport(dbusConn, servicename,
+				'/AcSensor/' + str(x) + '/Phase').get_value() + 1)
+
+		logging.info('AC Sensor on /AcSensor/' + str(x) + ', location: ' + str(location) +
+			', phase: ' + phase)
+
+		if location not in acDevices:
+			raise Exception('Unexpected AC Current Sensor Location: ' + str(location))
+
+		newacsensor = AcSensor(
+			sensor_power=VeDbusItemImport(dbusConn, servicename, '/AcSensor/' + str(x) + '/Power'),
+			sensor_energycounter=VeDbusItemImport(dbusConn, servicename, '/AcSensor/' + str(x) + '/Energy'),
+			sensor_voltage=VeDbusItemImport(dbusConn, servicename, '/AcSensor/' + str(x) + '/Voltage'),
+			sensor_current=VeDbusItemImport(dbusConn, servicename, '/AcSensor/' + str(x) + '/Current'))
+
+		acDevices[location].add_ac_sensor(newacsensor, phase)
+
+	for a, b in acDevices.iteritems():
+		b.update_dbus_service()
 
 
 # Scans the given dbus service to see if it contains anything interesting for us.
@@ -226,41 +273,10 @@ def scan_dbus_service(serviceName):
 
 	logging.info("Found: %s, checking for valid AC Current Sensors" % serviceName)
 
-	# TODO 1: put a signal monitor on the acSensorCount, for when someone changes the config in the Multi.
-	acSensorCount = VeDbusItemImport(dbusConn, serviceName, '/AcSensor/Count').get_value()
+	global sensorcounts
+	sensorcounts[serviceName] = VeDbusItemImport(dbusConn, serviceName, '/AcSensor/Count', countchanged)
 
-	if acSensorCount is None:
-		logging.info("Sensor count is invalid: mk2 service is still reading data from vebus. Retry in 5 secs.")
-		gobject.timeout_add(5000, scan_dbus_service, serviceName)
-		return
-
-	logging.info("Number of AC Current Sensors found: " + str(acSensorCount))
-
-	# loop through all the ac current sensors in the system, and add to right acDevice object
-	for x in range(0, acSensorCount):
-
-		# TODO 1: put a signal monitor on the location and the phase?
-		location = VeDbusItemImport(dbusConn, serviceName,
-				'/AcSensor/' + str(x) + '/Location').get_value()
-		phase = 'L' + str(VeDbusItemImport(dbusConn, serviceName,
-				'/AcSensor/' + str(x) + '/Phase').get_value() + 1)
-
-		logging.info('AC Sensor on /AcSensor/' + str(x) + ', location: ' + str(location) +
-			', phase: ' + phase)
-
-		if location not in acDevices:
-			raise Exception('Unexpected AC Current Sensor Location: ' + str(location))
-
-		newacsensor = AcSensor(
-			sensor_power=VeDbusItemImport(dbusConn, serviceName, '/AcSensor/' + str(x) + '/Power'),
-			sensor_energycounter=VeDbusItemImport(dbusConn, serviceName, '/AcSensor/' + str(x) + '/Energy'),
-			sensor_voltage=VeDbusItemImport(dbusConn, serviceName, '/AcSensor/' + str(x) + '/Voltage'),
-			sensor_current=VeDbusItemImport(dbusConn, serviceName, '/AcSensor/' + str(x) + '/Current'))
-
-		acDevices[location].add_ac_sensor(newacsensor, phase)
-
-	for a, b in acDevices.iteritems():
-		b.update_dbus_service()
+	countchanged(serviceName, None, None, skipremove=True)
 
 
 def main():
