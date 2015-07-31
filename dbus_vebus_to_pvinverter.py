@@ -94,10 +94,10 @@ class AcDevice(object):
 			else:
 				phaseTotals = {'I': 0, 'P': 0, 'E': 0}
 				for o in self._acSensors[phase]:
-					phaseTotals['I'] += float(o['current'].get_value())
-					phaseTotals['P'] += float(o['power'].get_value())
-					phaseTotals['E'] += float(o['energycounter'].get_value())
-					voltage = float(o['voltage'].get_value()) # just take the last voltage
+					phaseTotals['I'] += float(o['current'].get_value() or 0)
+					phaseTotals['P'] += float(o['power'].get_value() or 0)
+					phaseTotals['E'] += float(o['energycounter'].get_value() or 0)
+					voltage = float(o['voltage'].get_value() or 0) # just take the last voltage
 
 				if (pre + '/Power') not in self._dbusService:
 					# This phase hasn't been added yet, adding it now
@@ -242,22 +242,26 @@ def countchanged(servicename, path, changes, skipremove=False):
 	for x in range(0, acSensorCount):
 
 		# TODO 1: put a signal monitor on the location and the phase?
+		sensor_path = '/AcSensor/%s' % x
 		location = VeDbusItemImport(dbusConn, servicename,
-				'/AcSensor/' + str(x) + '/Location', createsignal=False).get_value()
-		phase = 'L' + str(VeDbusItemImport(dbusConn, servicename,
-				'/AcSensor/' + str(x) + '/Phase', createsignal=False).get_value() + 1)
+				sensor_path + '/Location', createsignal=False).get_value()
+		phase = VeDbusItemImport(dbusConn, servicename,
+				sensor_path + '/Phase', createsignal=False).get_value()
+		if location is None or phase is None:
+			# We get here when the vebus service is removed from the D-Bus shortly after creation.
+			continue
+		phase = 'L%s' % (phase + 1)
 
-		logging.info('AC Sensor on /AcSensor/' + str(x) + ', location: ' + str(location) +
-			', phase: ' + phase)
+		logging.info('AC Sensor on %s, location: %s, phase: %s' % (sensor_path, location, phase))
 
 		if location not in acDevices:
-			raise Exception('Unexpected AC Current Sensor Location: ' + str(location))
+			raise Exception('Unexpected AC Current Sensor Location: %s' % location)
 
 		newacsensor = AcSensor(
-			sensor_power=VeDbusItemImport(dbusConn, servicename, '/AcSensor/' + str(x) + '/Power'),
-			sensor_energycounter=VeDbusItemImport(dbusConn, servicename, '/AcSensor/' + str(x) + '/Energy'),
-			sensor_voltage=VeDbusItemImport(dbusConn, servicename, '/AcSensor/' + str(x) + '/Voltage'),
-			sensor_current=VeDbusItemImport(dbusConn, servicename, '/AcSensor/' + str(x) + '/Current'))
+			sensor_power=VeDbusItemImport(dbusConn, servicename, sensor_path + '/Power'),
+			sensor_energycounter=VeDbusItemImport(dbusConn, servicename, sensor_path + '/Energy'),
+			sensor_voltage=VeDbusItemImport(dbusConn, servicename, sensor_path + '/Voltage'),
+			sensor_current=VeDbusItemImport(dbusConn, servicename, sensor_path + '/Current'))
 
 		acDevices[location].add_ac_sensor(newacsensor, phase)
 
