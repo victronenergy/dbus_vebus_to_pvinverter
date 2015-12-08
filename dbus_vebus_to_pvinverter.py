@@ -10,7 +10,6 @@ from gobject import idle_add
 import dbus
 import dbus.service
 import inspect
-import platform
 import logging
 import argparse
 import sys
@@ -311,7 +310,7 @@ def main():
 
 	# For a PC, connect to the SessionBus
 	# For a CCGX, connect to the SystemBus
-	dbusConn = dbus.SystemBus() if (platform.machine() == 'armv7l') else dbus.SessionBus()
+	dbusConn = dbus.SessionBus() if 'DBUS_SESSION_BUS_ADDRESS' in os.environ else dbus.SystemBus()
 
 	# subscribe to NameOwnerChange for bus connect / disconnect events.
 	dbusConn.add_signal_receiver(dbus_name_owner_changed, signal_name='NameOwnerChanged')
