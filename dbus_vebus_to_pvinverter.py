@@ -211,7 +211,6 @@ def process_name_owner_changed(name, oldOwner, newOwner):
 	if newOwner != '':
 		scan_dbus_service(name)
 	else:
-		logging.info("Disappeared: %s, removing its AC Current Sensors (if it had any)" % name)
 		for a, b in acDevices.iteritems():
 			b.remove_ac_sensors_imported_from(name)
 
