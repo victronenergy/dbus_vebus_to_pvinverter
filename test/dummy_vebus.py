@@ -1,10 +1,10 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 ## @package conversions
 # takes data from the dbus, does calculations with it, and puts it back on
 from dbus.mainloop.glib import DBusGMainLoop
-import gobject
-from gobject import idle_add
+from gi.repository import GObject as gobject
+from gi.repository import GLib
 import dbus
 import dbus.service
 import inspect
@@ -101,13 +101,13 @@ gobject.timeout_add(1000, update)
 
 def increase_count():
 	global dbusservice
-	print 'Increasing count'
+	print('Increasing count')
 	dbusservice['/AcSensor/Count'] = 3
 	return False
 
 gobject.timeout_add(3000, increase_count)
 
-print 'Connected to dbus, and switching over to gobject.MainLoop() (= event based)'
+print('Connected to dbus, and switching over to gobject.MainLoop() (= event based)')
 mainloop = gobject.MainLoop()
 mainloop.run()
 
