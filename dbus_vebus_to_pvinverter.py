@@ -44,6 +44,16 @@ class AcSensor():
 			if dbusitem:
 				dbusitem.eventCallback = neweventcallback
 
+class SystemBus(dbus.bus.BusConnection):
+	def __new__(cls):
+		return dbus.bus.BusConnection.__new__(cls, dbus.bus.BusConnection.TYPE_SYSTEM)
+
+class SessionBus(dbus.bus.BusConnection):
+	def __new__(cls):
+		return dbus.bus.BusConnection.__new__(cls, dbus.bus.BusConnection.TYPE_SESSION)
+
+def dbusconnection():
+	return SessionBus() if 'DBUS_SESSION_BUS_ADDRESS' in os.environ else SystemBus()
 
 # Class representing one PV Inverter. I chose a more generic name, since in future it
 # will probably also become something else, such as a grid connection, or wind inverter
@@ -141,7 +151,7 @@ class AcDevice(object):
 			if self._dbusService is None:
 
 				pf = {0: 'input1', 1: 'output', 2: 'input2'}
-				self._dbusService = VeDbusService('com.victronenergy.pvinverter.vebusacsensor_' + pf[self._name])
+				self._dbusService = VeDbusService('com.victronenergy.pvinverter.vebusacsensor_' + pf[self._name], dbusconnection())
 				#, self._dbusConn)
 
 				self._dbusService.add_path('/Position', self._name, description=None, gettextcallback=self.gettextforposition)
