@@ -1,12 +1,11 @@
-#!/usr/bin/python -u
+#!/usr/bin/python3 -u
 # -*- coding: utf-8 -*-
 
 # takes ACSensor data from one or more VEBus dbus services, and converts it into a nice looking
 # PV Inverter dbus service.
 
 from dbus.mainloop.glib import DBusGMainLoop
-import gobject
-from gobject import idle_add
+from gi.repository import GLib
 import dbus
 import dbus.service
 import inspect
@@ -28,7 +27,7 @@ acDevices = {}
 sensorcounts = {}
 
 # One VE.Bus AC Sensor, contains links to the four D-Bus items
-class AcSensor():
+class AcSensor(object):
 	def __init__(self, sensor_voltage=None, sensor_power=None, sensor_current=None, sensor_energycounter=None):
 		self.dbusobjects = {
 			'voltage': sensor_voltage,
@@ -80,7 +79,7 @@ class AcDevice(object):
 
 	def value_has_changed(self, dbusName, dbusObjectPath, changes):
 		# decouple, and process update in the mainloop
-		idle_add(self.update_values)
+		GLib.idle_add(self.update_values)
 
 	# iterates through all sensor dbusItems, and recalculates our values. Adds objects to exported
 	# dbus values if necessary.
@@ -212,7 +211,7 @@ class AcDevice(object):
 
 def dbus_name_owner_changed(name, oldOwner, newOwner):
 	# decouple, and process in main loop
-	idle_add(process_name_owner_changed, name, oldOwner, newOwner)
+	GLib.idle_add(process_name_owner_changed, name, oldOwner, newOwner)
 
 
 def process_name_owner_changed(name, oldOwner, newOwner):
@@ -221,7 +220,7 @@ def process_name_owner_changed(name, oldOwner, newOwner):
 	if newOwner != '':
 		scan_dbus_service(name)
 	else:
-		for a, b in acDevices.iteritems():
+		for a, b in acDevices.items():
 			b.remove_ac_sensors_imported_from(name)
 
 
@@ -236,7 +235,7 @@ def countchanged(servicename, path, changes, skipremove=False):
 
 	# First remove the service
 	if not skipremove:
-		for a, b in acDevices.iteritems():
+		for a, b in acDevices.items():
 			b.remove_ac_sensors_imported_from(servicename)
 
 	# Note that the mk2 service will first come on to the D-Bus with an invalidated sensor count,
@@ -273,7 +272,7 @@ def countchanged(servicename, path, changes, skipremove=False):
 
 		acDevices[location].add_ac_sensor(newacsensor, phase)
 
-	for a, b in acDevices.iteritems():
+	for a, b in acDevices.items():
 		b.update_dbus_service()
 
 
@@ -337,7 +336,7 @@ def main():
 
 	# Start and run the mainloop
 	logging.info("Starting mainloop, responding only on events")
-	mainloop = gobject.MainLoop()
+	mainloop = GLib.MainLoop()
 	mainloop.run()
 
 if __name__ == "__main__":
