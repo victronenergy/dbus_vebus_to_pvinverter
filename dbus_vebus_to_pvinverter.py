@@ -164,6 +164,9 @@ class AcDevice(object):
 				self._dbusService.add_path('/ProductName', self._names[self._name])
 				self._dbusService.add_path('/Connected', 1)
 
+				# Dummy path so VRM detects us as a PV-inverter.
+				self._dbusService.add_path('/StatusCode', 0)
+
 				logging.info('Added to D-Bus: ' + self.__str__())
 
 			self.update_values()
