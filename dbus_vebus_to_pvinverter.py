@@ -88,7 +88,7 @@ class AcDevice(object):
 		if not self._dbusService:
 			return
 
-		totals = {'I': 0, 'P': 0, 'E': 0}
+		totals = {'P': 0, 'E': 0}
 
 		for phase in ['L1', 'L2', 'L3']:
 			pre = '/Ac/' + phase
@@ -122,7 +122,6 @@ class AcDevice(object):
 						s[pre + '/Power'] = phaseTotals['P']
 						s[pre + '/Energy/Forward'] = phaseTotals['E']
 
-				totals['I'] += phaseTotals['I']
 				totals['P'] += phaseTotals['P']
 				totals['E'] += phaseTotals['E']
 
@@ -134,13 +133,11 @@ class AcDevice(object):
 			# in threads.
 			#raise Exception ("exit Exception!")
 
-		if '/Ac/Current' not in self._dbusService:
-			self._dbusService.add_path('/Ac/Current', totals['I'], gettextcallback=self.gettextforA)
+		if '/Ac/Power' not in self._dbusService:
 			self._dbusService.add_path('/Ac/Power', totals['P'], gettextcallback=self.gettextforW)
 			self._dbusService.add_path('/Ac/Energy/Forward', totals['E'], gettextcallback=self.gettextforkWh)
 		else:
 			with self._dbusService as s:
-				s['/Ac/Current'] = totals['I']
 				s['/Ac/Power'] =  totals['P']
 				s['/Ac/Energy/Forward'] = totals['E']
 
