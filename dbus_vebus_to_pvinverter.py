@@ -95,10 +95,11 @@ class AcDevice(object):
 
 			if len(self._acSensors[phase]) == 0:
 				if (pre + '/Power') in self._dbusService:
-					self._dbusService[pre + '/Power'] = None
-					self._dbusService[pre + '/Energy/Forward'] = None
-					self._dbusService[pre + '/Voltage'] = None
-					self._dbusService[pre + '/Current'] = None
+					with self._dbusService as s:
+						s[pre + '/Power'] = None
+						s[pre + '/Energy/Forward'] = None
+						s[pre + '/Voltage'] = None
+						s[pre + '/Current'] = None
 			else:
 				phaseTotals = {'I': 0, 'P': 0, 'E': 0}
 				for o in self._acSensors[phase]:
@@ -115,10 +116,11 @@ class AcDevice(object):
 					self._dbusService.add_path(pre + '/Power', phaseTotals['P'], gettextcallback=self.gettextforW)
 					self._dbusService.add_path(pre + '/Energy/Forward', phaseTotals['E'], gettextcallback=self.gettextforkWh)
 				else:
-					self._dbusService[pre + '/Voltage'] = voltage
-					self._dbusService[pre + '/Current'] = phaseTotals['I']
-					self._dbusService[pre + '/Power'] = phaseTotals['P']
-					self._dbusService[pre + '/Energy/Forward'] = phaseTotals['E']
+					with self._dbusService as s:
+						s[pre + '/Voltage'] = voltage
+						s[pre + '/Current'] = phaseTotals['I']
+						s[pre + '/Power'] = phaseTotals['P']
+						s[pre + '/Energy/Forward'] = phaseTotals['E']
 
 				totals['I'] += phaseTotals['I']
 				totals['P'] += phaseTotals['P']
@@ -137,9 +139,10 @@ class AcDevice(object):
 			self._dbusService.add_path('/Ac/Power', totals['P'], gettextcallback=self.gettextforW)
 			self._dbusService.add_path('/Ac/Energy/Forward', totals['E'], gettextcallback=self.gettextforkWh)
 		else:
-			self._dbusService['/Ac/Current'] = totals['I']
-			self._dbusService['/Ac/Power'] =  totals['P']
-			self._dbusService['/Ac/Energy/Forward'] = totals['E']
+			with self._dbusService as s:
+				s['/Ac/Current'] = totals['I']
+				s['/Ac/Power'] =  totals['P']
+				s['/Ac/Energy/Forward'] = totals['E']
 
 	# Call this function after you have added AC sensors to this class. Code will check if we have any,
 	# and if yes, add ourselves to the dbus.
