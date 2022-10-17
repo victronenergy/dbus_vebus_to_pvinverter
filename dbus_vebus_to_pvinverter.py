@@ -17,6 +17,7 @@ import os
 # Victron packages
 sys.path.insert(1, os.path.join(os.path.dirname(__file__), './ext/velib_python'))
 from vedbus import VeDbusService, VeDbusItemImport
+from dbusmonitor import DbusMonitor
 
 softwareVersion = '1.33'
 
@@ -324,7 +325,7 @@ def main():
 	dbusConn = dbus.SessionBus() if 'DBUS_SESSION_BUS_ADDRESS' in os.environ else dbus.SystemBus()
 
 	# subscribe to NameOwnerChange for bus connect / disconnect events.
-	dbusConn.add_signal_receiver(dbus_name_owner_changed, signal_name='NameOwnerChanged')
+	DbusMonitor.add_name_owner_changed_receiver(dbusConn, dbus_name_owner_changed)
 
 	# Add the acDevices, and use same numbering as in VE.Bus
 	acDevices[0] = AcDevice(0)
