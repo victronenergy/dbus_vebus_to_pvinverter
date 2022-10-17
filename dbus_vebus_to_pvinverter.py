@@ -19,7 +19,7 @@ sys.path.insert(1, os.path.join(os.path.dirname(__file__), './ext/velib_python')
 from vedbus import VeDbusService, VeDbusItemImport
 from dbusmonitor import DbusMonitor
 
-softwareVersion = '1.33'
+softwareVersion = '1.34'
 
 # Dictionary containing all acDevices exported to dbus
 acDevices = {}
