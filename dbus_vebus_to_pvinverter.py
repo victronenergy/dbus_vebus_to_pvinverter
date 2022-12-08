@@ -89,56 +89,54 @@ class AcDevice(object):
 
 		totals = {'P': 0, 'E': 0}
 
-		for phase in ['L1', 'L2', 'L3']:
-			pre = '/Ac/' + phase
+		with self._dbusService as service:
+			for phase in ['L1', 'L2', 'L3']:
+				pre = '/Ac/' + phase
 
-			if len(self._acSensors[phase]) == 0:
-				if (pre + '/Power') in self._dbusService:
-					with self._dbusService as s:
-						s[pre + '/Power'] = None
-						s[pre + '/Energy/Forward'] = None
-						s[pre + '/Voltage'] = None
-						s[pre + '/Current'] = None
-			else:
-				phaseTotals = {'I': 0, 'P': 0, 'E': 0}
-				for o in self._acSensors[phase]:
-					phaseTotals['I'] += float(o['current'].get_value() or 0)
-					phaseTotals['P'] += float(o['power'].get_value() or 0)
-					phaseTotals['E'] += float(o['energycounter'].get_value() or 0)
-					voltage = float(o['voltage'].get_value() or 0) # just take the last voltage
-
-				if (pre + '/Power') not in self._dbusService:
-					# This phase hasn't been added yet, adding it now
-
-					self._dbusService.add_path(pre + '/Voltage', voltage, gettextcallback=self.gettextforV)
-					self._dbusService.add_path(pre + '/Current', phaseTotals['I'], gettextcallback=self.gettextforA)
-					self._dbusService.add_path(pre + '/Power', phaseTotals['P'], gettextcallback=self.gettextforW)
-					self._dbusService.add_path(pre + '/Energy/Forward', phaseTotals['E'], gettextcallback=self.gettextforkWh)
+				if len(self._acSensors[phase]) == 0:
+					if (pre + '/Power') in self._dbusService:
+						service[pre + '/Power'] = None
+						service[pre + '/Energy/Forward'] = None
+						service[pre + '/Voltage'] = None
+						service[pre + '/Current'] = None
 				else:
-					with self._dbusService as s:
-						s[pre + '/Voltage'] = voltage
-						s[pre + '/Current'] = phaseTotals['I']
-						s[pre + '/Power'] = phaseTotals['P']
-						s[pre + '/Energy/Forward'] = phaseTotals['E']
+					phaseTotals = {'I': 0, 'P': 0, 'E': 0}
+					for o in self._acSensors[phase]:
+						phaseTotals['I'] += float(o['current'].get_value() or 0)
+						phaseTotals['P'] += float(o['power'].get_value() or 0)
+						phaseTotals['E'] += float(o['energycounter'].get_value() or 0)
+						voltage = float(o['voltage'].get_value() or 0) # just take the last voltage
 
-				totals['P'] += phaseTotals['P']
-				totals['E'] += phaseTotals['E']
+					if (pre + '/Power') not in self._dbusService:
+						# This phase hasn't been added yet, adding it now
 
-				#logging.debug(
-				#	self._names[self._name] + '. Phase ' + phase + ' recalculated: %0.2fV,  %0.2fA, %0.4fW and %0.4f kWh' %
-				#	(voltage,  phaseTotals['I'],  phaseTotals['P'],  phaseTotals['E']))
+						self._dbusService.add_path(pre + '/Voltage', voltage, gettextcallback=self.gettextforV)
+						self._dbusService.add_path(pre + '/Current', phaseTotals['I'], gettextcallback=self.gettextforA)
+						self._dbusService.add_path(pre + '/Power', phaseTotals['P'], gettextcallback=self.gettextforW)
+						self._dbusService.add_path(pre + '/Energy/Forward', phaseTotals['E'], gettextcallback=self.gettextforkWh)
+					else:
+						service[pre + '/Voltage'] = voltage
+						service[pre + '/Current'] = phaseTotals['I']
+						service[pre + '/Power'] = phaseTotals['P']
+						service[pre + '/Energy/Forward'] = phaseTotals['E']
 
-			# TODO, why doesn't the application crash on an exception? I want it to crash, also on exceptions
-			# in threads.
-			#raise Exception ("exit Exception!")
+					totals['P'] += phaseTotals['P']
+					totals['E'] += phaseTotals['E']
 
-		if '/Ac/Power' not in self._dbusService:
-			self._dbusService.add_path('/Ac/Power', totals['P'], gettextcallback=self.gettextforW)
-			self._dbusService.add_path('/Ac/Energy/Forward', totals['E'], gettextcallback=self.gettextforkWh)
-		else:
-			with self._dbusService as s:
-				s['/Ac/Power'] =  totals['P']
-				s['/Ac/Energy/Forward'] = totals['E']
+					#logging.debug(
+					#	self._names[self._name] + '. Phase ' + phase + ' recalculated: %0.2fV,  %0.2fA, %0.4fW and %0.4f kWh' %
+					#	(voltage,  phaseTotals['I'],  phaseTotals['P'],  phaseTotals['E']))
+
+				# TODO, why doesn't the application crash on an exception? I want it to crash, also on exceptions
+				# in threads.
+				#raise Exception ("exit Exception!")
+
+			if '/Ac/Power' not in self._dbusService:
+				self._dbusService.add_path('/Ac/Power', totals['P'], gettextcallback=self.gettextforW)
+				self._dbusService.add_path('/Ac/Energy/Forward', totals['E'], gettextcallback=self.gettextforkWh)
+			else:
+				service['/Ac/Power'] =  totals['P']
+				service['/Ac/Energy/Forward'] = totals['E']
 
 	# Call this function after you have added AC sensors to this class. Code will check if we have any,
 	# and if yes, add ourselves to the dbus.
