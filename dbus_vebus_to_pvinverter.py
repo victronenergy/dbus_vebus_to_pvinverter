@@ -7,8 +7,6 @@
 from dbus.mainloop.glib import DBusGMainLoop
 from gi.repository import GLib
 import dbus
-import dbus.service
-import inspect
 import logging
 import argparse
 import sys
