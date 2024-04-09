@@ -211,7 +211,7 @@ class AcDevice(object):
 
 def dbus_name_owner_changed(name, oldOwner, newOwner):
 	# decouple, and process in main loop
-	GLib.idle_add(process_name_owner_changed, name, oldOwner, newOwner)
+	GLib.timeout_add(5000, process_name_owner_changed, name, oldOwner, newOwner)
 
 
 def process_name_owner_changed(name, oldOwner, newOwner):
