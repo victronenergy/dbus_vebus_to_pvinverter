@@ -147,7 +147,9 @@ class AcDevice(object):
 			if self._dbusService is None:
 
 				pf = {0: 'input1', 1: 'output', 2: 'input2'}
-				self._dbusService = VeDbusService('com.victronenergy.pvinverter.vebusacsensor_' + pf[self._name], dbusconnection())
+				self._dbusService = VeDbusService(
+					'com.victronenergy.pvinverter.vebusacsensor_' + pf[self._name],
+					bus=dbusconnection(), register=False)
 				#, self._dbusConn)
 
 				self._dbusService.add_path('/Position', self._name, description=None, gettextcallback=self.gettextforposition)
@@ -163,6 +165,9 @@ class AcDevice(object):
 
 				# Dummy path so VRM detects us as a PV-inverter.
 				self._dbusService.add_path('/StatusCode', 0)
+
+				# Register on dbus
+				self._dbusService.register()
 
 				logging.info('Added to D-Bus: ' + self.__str__())
 
