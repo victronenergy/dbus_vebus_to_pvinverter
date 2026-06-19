@@ -215,8 +215,14 @@ class AcDevice(object):
 
 
 def dbus_name_owner_changed(name, oldOwner, newOwner):
+	if not name.startswith('com.victronenergy.vebus.'):
+		return
+
 	# decouple, and process in main loop
-	GLib.timeout_add(5000, process_name_owner_changed, name, oldOwner, newOwner)
+	if newOwner == '':
+		GLib.idle_add(process_name_owner_changed, name, oldOwner, newOwner)
+	else:
+		GLib.timeout_add(5000, process_name_owner_changed, name, oldOwner, newOwner)
 
 
 def process_name_owner_changed(name, oldOwner, newOwner):
@@ -283,10 +289,6 @@ def countchanged(servicename, path, changes, skipremove=False):
 
 # Scans the given dbus service to see if it contains anything interesting for us.
 def scan_dbus_service(serviceName):
-	# Not for us? Exit.
-	if serviceName.split('.')[0:3] != ['com', 'victronenergy', 'vebus']:
-		return
-
 	logging.info("Found: %s, checking for valid AC Current Sensors" % serviceName)
 
 	global sensorcounts
@@ -336,7 +338,8 @@ def main():
 	logging.info('Searching dbus for vebus devices...')
 	serviceNames = dbusConn.list_names()
 	for serviceName in serviceNames:
-		scan_dbus_service(serviceName)
+		if serviceName.startswith('com.victronenergy.vebus.'):
+			scan_dbus_service(serviceName)
 	logging.info('Finished search for vebus devices')
 
 	# Start and run the mainloop
